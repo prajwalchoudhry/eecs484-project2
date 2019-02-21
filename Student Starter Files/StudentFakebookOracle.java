@@ -108,7 +108,123 @@ public final class StudentFakebookOracle extends FakebookOracle {
     //        (C) The first name held by the most users
     //        (D) The number of users whose first name is that identified in (C)
     public FirstNameInfo findNameInfo() throws SQLException {
-        try (Statement stmt = oracle.createStatement(FakebookOracleConstants.AllScroll, FakebookOracleConstants.ReadOnly)) {
+        try (Statement stmt = oracle.createStatement(FakebookOracleConstants.AllScroll, FakebookOracleConstants.ReadOnly)) 
+        {
+
+            FirstNameInfo info = new FirstNameInfo();
+
+            ResultSet rst = stmt.executeQuery(
+                "SELECT COUNT(*) AS Num, First_Name, LENGTH(First_Name) AS length " +         
+                "FROM " + UsersTable + " " +                            
+                "GROUP BY First_Name " +         
+                "ORDER BY length DESC, First_Name ASC");   
+
+            boolean found_longest = false;
+            boolean found_shortest = false;
+
+           FakebookArrayList<String> temp = new FakebookArrayList<String>(", ");
+
+
+           rst.next();
+
+           int prev_x = rst.getInt("length");
+           String prev_y = rst.getString("First_Name");  
+
+
+           if (rst.isFirst())
+                 {                   
+                    temp.add(rst.getString("First_Name"));
+                    for(int i = 0; i < temp.size(); i++)
+                    {
+                        info.addLongName(temp.get(i)); 
+                    }
+                    temp.clear();
+                }
+                if (rst.isLast()) 
+                {                   
+                    temp.add(rst.getString("First_Name"));
+                    for(int i = 0; i < temp.size(); i++)
+                    {
+                        info.addShortName(temp.get(i)); 
+                    }
+                    temp.clear();
+                }
+
+
+
+            while (rst.next()) {     
+
+         
+                if (prev_x == rst.getInt("length"))
+                {
+                    temp.add(rst.getString("First_Name"));
+                }
+                else
+                {
+                    temp.clear();
+                    prev_x = rst.getInt("length");
+                    temp.add(rst.getString("First_Name"));
+                }
+
+                if (rst.isFirst())
+                 {                   
+                    //temp.add(rst.getString("First_Name"));
+                    for(int i = 0; i < temp.size(); i++)
+                    {
+                        info.addLongName(temp.get(i)); 
+                    }
+                    temp.clear();
+                }
+                if (rst.isLast()) 
+                {                   
+                    //temp.add(rst.getString("First_Name"));
+                    for(int i = 0; i < temp.size(); i++)
+                    {
+                        info.addShortName(temp.get(i)); 
+                    }
+                    temp.clear();
+                }
+                prev_x = rst.getInt("length");
+                prev_y = rst.getString("First_Name");
+            }    
+
+
+            ResultSet rst1 = stmt.executeQuery(
+                "SELECT * " +         
+                "FROM " + UsersTable + " " +                                  
+                "ORDER BY First_Name ASC");   
+
+            rst1.next();
+
+            String prev = rst1.getString("First_Name");
+            int running_total = 1;
+            String current_name = prev;
+            int total = 1;
+            String final_name = prev;
+
+            while(rst1.next())
+            {
+                if(prev.equals(rst1.getString("First_Name")))
+                {
+                    running_total++;
+                }
+                else
+                {
+                    if(total < running_total)
+                    {
+                        final_name = current_name;
+                        total = running_total;
+                    }
+                    running_total = 1;
+                    current_name = rst1.getString("First_Name");
+                }
+
+                prev = rst1.getString("First_Name");
+            }
+
+            info.addCommonName(final_name);
+            info.setCommonNameCount(total); 
+
             /*
                 EXAMPLE DATA STRUCTURE USAGE
                 ============================================
@@ -123,9 +239,10 @@ public final class StudentFakebookOracle extends FakebookOracle {
                 info.setCommonNameCount(42);
                 return info;
             */
-            return new FirstNameInfo();                // placeholder for compilation
+            return info;                // placeholder for compilation
         }
-        catch (SQLException e) {
+        catch (SQLException e) 
+        {
             System.err.println(e.getMessage());
             return new FirstNameInfo();
         }
