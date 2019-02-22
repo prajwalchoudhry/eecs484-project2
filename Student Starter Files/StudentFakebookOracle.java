@@ -352,7 +352,8 @@ public final class StudentFakebookOracle extends FakebookOracle {
     public FakebookArrayList<TaggedPhotoInfo> findPhotosWithMostTags(int num) throws SQLException {
         FakebookArrayList<TaggedPhotoInfo> results = new FakebookArrayList<TaggedPhotoInfo>("\n");
 
-        try (Statement stmt = oracle.createStatement(FakebookOracleConstants.AllScroll, FakebookOracleConstants.ReadOnly); Statement stmt2 = oracle.createStatement(FakebookOracleConstants.AllScroll, FakebookOracleConstants.ReadOnly)){
+        try (Statement stmt = oracle.createStatement(FakebookOracleConstants.AllScroll, FakebookOracleConstants.ReadOnly);
+             Statement innerStmt = oracle.createStatement(FakebookOracleConstants.AllScroll, FakebookOracleConstants.ReadOnly)){
 
           ResultSet rst = stmt.executeQuery(
           "SELECT allPhotos.PHOTO_ID, allAlbums.ALBUM_ID, allPhotos.PHOTO_LINK, allAlbums.ALBUM_NAME, COUNT(allTags.TAG_PHOTO_ID) " +
@@ -378,39 +379,35 @@ public final class StudentFakebookOracle extends FakebookOracle {
             */
 
             int numberProcessed = 0;
+            FakebookArrayList<TaggedPhotoInfo> temp = new FakebookArrayList<TaggedPhotoInfo>("\n");
             long currentPhoto = 0L;
 
-            while (rst.next() && (numberProcessed < num)){
+            while (rst.next() && numberProcessed < num ){
               PhotoInfo newPhoto = new PhotoInfo(rst.getLong(1), rst.getLong(2), rst.getString(3), rst.getString(4));
               TaggedPhotoInfo newTag = new TaggedPhotoInfo(newPhoto);
 
               currentPhoto = rst.getLong(1);
 
-              ResultSet names = stmt2.executeQuery(
+              ResultSet names = innerStmt.executeQuery(
               "SELECT allUsers.USER_ID, allUsers.FIRST_NAME, allUsers.LAST_NAME " +
               "FROM " + UsersTable + " allUsers, " + TagsTable + " allTags, " + PhotosTable + " allPhotos " +
               "WHERE " +
               "allUsers.USER_ID = allTags.TAG_SUBJECT_ID AND " +
               "allTags.TAG_PHOTO_ID = allPhotos.PHOTO_ID AND " +
-              "allTags.TAG_PHOTO_ID = " + rst.getLong(1) + " " +
-              "ORDER BY allTags.TAG_PHOTO_ID ASC");
-
-              numberProcessed++;
+              "allTags.TAG_PHOTO_ID = " + currentPhoto + " " +
+              "ORDER BY allUsers.USER_ID ASC");
 
               while (names.next()){
                 newTag.addTaggedUser(new UserInfo(names.getLong(1), names.getString(2), names.getString(3)));
               }
 
               results.add(newTag);
-
               numberProcessed++;
-
-
             }
 
-
-
-
+            rst.close();
+            stmt.close();
+            innerStmt.close();
 
         }
         catch (SQLException e) {
